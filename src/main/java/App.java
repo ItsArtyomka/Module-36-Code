@@ -4,23 +4,21 @@ import org.hibernate.SessionFactory;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
+import org.hibernate.query.Query;
 
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Root;
 import java.util.Date;
 import java.util.List;
 
-@SuppressWarnings({"unchecked", "DataFlowIssue", "ConstantValue", "JpaQlInspection"})
 public class App {
     public static void main(String[] args) {
-
-        // Needed for work with DB
         SessionFactory sessionFactory = null;
 
-        // Helps to configure Hibernate
         final StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
                 .configure()
                 .build();
-
-        // Building the SessionFactory
         try {
             sessionFactory = new MetadataSources(registry)
                     .addAnnotatedClass(Event.class)
@@ -30,31 +28,28 @@ public class App {
             StandardServiceRegistryBuilder.destroy(registry);
         }
 
-        // Work with operations on DB
+        assert sessionFactory != null;
         Session session = sessionFactory.openSession();
         session.beginTransaction();
 
-        // Saving a new event in the DB
-        session.save(new Event("Hibernate Learning", new Date()));
+
+        session.save(new Event("New Event!", new Date()));
         session.getTransaction()
-                .commit(); // Saving the changes
-        session.close();
+                .commit();
+        CriteriaBuilder criteriaBuilder = session.getCriteriaBuilder();
+        CriteriaQuery<Event> query = criteriaBuilder.createQuery(Event.class);
+        Root<Event> eventRoot = query.from(Event.class);
+        query.select(eventRoot);
 
-        // Process of reading the data
-        session = sessionFactory.openSession();
-        session.beginTransaction();
-        List<Event> result = session.createQuery("from Event").list(); // Getting all the data from EVENT table
-        // Iterating through all the data
-        for (Event event : result) {
-            System.out.println("Event (" + event.getDate() + ") : " + event.getTitle()); // Output of events
-        }
-        // Finishing the work with DB
-        session.getTransaction().commit();
-        session.close();
+        // Querying the data
+        Query<Event> eventQuery = session.createQuery(query);
+        List<Event> events = eventQuery.getResultList();
 
-        // NullPointerException safety
-        if (sessionFactory != null) {
-            sessionFactory.close();
-        }
+        // Output
+        System.out.println("Event (" + events.get(0).getTitle() + ") : " + events.get(0).getDate());
+
+        // Closing the session
+        session.getTransaction();
+        session.close();
     }
 }
